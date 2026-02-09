@@ -63,20 +63,40 @@ client
         res.status(500).send({ error, message: "can't fetch data" });
       }
     });
+    // get users by email
+    app.get("/users/:email", verifyFirebaseToken, async (req, res) => {
+      try {
+        const email = req.params.email;
+        const tokenEmail = req.decoded_email;
+        if (email !== tokenEmail) {
+          res.status(403).send({ error, message: "Forbidden Access" });
+        }
+        const query = { email };
+
+        const result = await usersCollection.findOne(query);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error, message: error.message });
+      }
+    });
     app.post("/users", async (req, res) => {
       try {
-        const user = req.body;
-        user.role = "user";
-        user.isPremium = false;
-        user.createdAt = new Date();
-
-        const email = user.email;
-        const emailExist = await usersCollection.findOne({ email });
-        if (emailExist) {
-          return res.status(409).send({ message: "User already exists" });
+        const { email, displayName, photoURL } = req.body;
+        if (!email) {
+          res.status(400).send({ message: "Email needed" });
         }
-        const result = await usersCollection.insertOne(user);
-        res.send(result);
+        const user = await usersCollection.findOne({ email });
+        if (!user) {
+          user = await usersCollection.insertOne({
+            email,
+            displayName,
+            photoURL,
+            isPremium: false,
+            role: "user",
+            createdAt: new Date(),
+          });
+        }
+        res.send(user);
       } catch (error) {
         res.status(500).send({ error, message: "can't fetch data" });
       }
@@ -102,7 +122,28 @@ client
     // lessons
     app.get("/lessons", async (req, res) => {
       try {
+        const result = await lessonsCollection.find().limit(6).toArray();
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error, message: "can't fetch data" });
+      }
+    });
+    app.get("/all-lessons", async (req, res) => {
+      try {
         const result = await lessonsCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error, message: "can't fetch data" });
+      }
+    });
+    app.get("/all-lessons/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const query = { _id: new ObjectId(id) };
+
+        const result = await lessonsCollection.findOne(query);
+
         res.send(result);
       } catch (error) {
         res.status(500).send({ error, message: "can't fetch data" });
@@ -110,8 +151,17 @@ client
     });
 
     app.post("/lessons", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
+      try {
+        const { user, ...lessonsData } = req.body;
+        if (!user) {
+          return res.status(400).send("User information is required");
+        }
+        const lessons = { ...lessonsData, user, createdAt: new Date() };
+        const result = await lessonsCollection.insertOne(lessons);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error, message: error.message });
+      }
     });
 
     // payments
@@ -136,8 +186,8 @@ client
 
           customer_email: paymentInfo.email,
           mode: "payment",
-          success_url: `${process.env.Stripe_Domain}/pricing/payment-success`,
-          cancel_url: `${process.env.Stripe_Domain}/pricing/payment-cancel`,
+          success_url: `${process.env.Stripe_Domain}/payments/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${process.env.Stripe_Domain}/payments/payment-cancel`,
           metadata: {
             userEmail: paymentInfo.email,
           },
@@ -155,6 +205,7 @@ client
         return res.status(400).send({ message: "session Id requard" });
       }
       const session = await stripe.checkout.sessions.retrieve(sessionID);
+      console.log("session is:", session);
       if (session.payment_status === "paid") {
         const userEmail = session.customer_email;
 
