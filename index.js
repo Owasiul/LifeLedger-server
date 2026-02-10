@@ -128,6 +128,21 @@ client
         res.status(500).send({ error, message: "can't fetch data" });
       }
     });
+
+    app.get("/filtered-lessons", async (req, res) => {
+      try {
+        const category = req.query.category;
+        const result = await lessonsCollection
+          .find({ category })
+          .limit(4)
+          .toArray();
+        console.log(result);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error, message: "can't fetch data" });
+      }
+    });
+
     app.get("/all-lessons", async (req, res) => {
       try {
         const result = await lessonsCollection.find().toArray();
@@ -161,6 +176,22 @@ client
         res.send(result);
       } catch (error) {
         res.status(500).send({ error, message: error.message });
+      }
+    });
+
+    app.post("/lessons/:id/likes", async (req, res) => {
+      const { user } = req.body;
+      const lessonId = req.params.id;
+      try {
+        const result = await lessonsCollection.updateOne(
+          { _id: new ObjectId(lessonId) },
+          {
+            $addToSet: { likes: new ObjectId(user) },
+          },
+        );
+        res.send(result);
+      } catch (error) {
+        console.log({ error, message: error.message });
       }
     });
 
