@@ -129,6 +129,17 @@ client
       }
     });
 
+    app.get("/lessons/:name", async (req, res) => {
+      try {
+        const name = req.params.name;
+        const query = { creatorName: name };
+        const result = await lessonsCollection.find(query).toArray();
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error, message: "can't fetch data" });
+      }
+    });
+
     app.get("/filtered-lessons", async (req, res) => {
       try {
         const category = req.query.category;
@@ -151,6 +162,7 @@ client
         res.status(500).send({ error, message: "can't fetch data" });
       }
     });
+
     app.get("/all-lessons/:id", async (req, res) => {
       try {
         const id = req.params.id;
@@ -167,18 +179,32 @@ client
 
     app.post("/lessons", async (req, res) => {
       try {
-        const { user, ...lessonsData } = req.body;
-        if (!user) {
-          return res.status(400).send("User information is required");
-        }
-        const lessons = { ...lessonsData, user, createdAt: new Date() };
+        const lessonsData = req.body;
+        const lessons = { ...lessonsData, createdAt: new Date() };
         const result = await lessonsCollection.insertOne(lessons);
+        const userId = lessonsData.creatorId;
+        const updatedDoc = await usersCollection.updateOne(
+          { _id: userId },
+          { $inc: { contributedLessons: 1 } },
+          { usert: true },
+        );
         res.send(result);
       } catch (error) {
         res.status(500).send({ error, message: error.message });
       }
     });
-
+    // delete
+    app.delete("/lessons/:id", async (req, res) => {
+      try {
+        const id = req.query.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await lessonsCollection.deleteOne(query);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error, message: error.message });
+      }
+    });
+    // likes
     app.post("/lessons/:id/likes", async (req, res) => {
       const { user } = req.body;
       const lessonId = req.params.id;
