@@ -53,8 +53,54 @@ client
     const usersCollection = LifeLedgerdb.collection("users");
     const lessonsCollection = LifeLedgerdb.collection("lessons");
     const paymentsCollection = LifeLedgerdb.collection("payments");
+    const reportsCollection = LifeLedgerdb.collection("reports");
 
-    // users
+    //verify Admin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded_email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      if (!user || user.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
+    app.get("/users/:email/roles", verifyFirebaseToken, async (req, res) => {
+      try {
+        const email = req.decoded_email;
+        const query = { email };
+        const user = await usersCollection.findOne(query);
+        res.send(user);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    app.patch(
+      "/users/:id/role",
+      verifyFirebaseToken,
+      verifyAdmin,
+      async (req, res) => {
+        try {
+          const id = req.params.id;
+          console.log(id);
+          const roleInfo = req.body.role;
+          console.log(roleInfo);
+          const query = { _id: new ObjectId(id) };
+          const updatedDoc = {
+            $set: {
+              role: roleInfo,
+            },
+          };
+          const result = await usersCollection.updateOne(query, updatedDoc);
+          res.send(result);
+        } catch (error) {
+          console.log(error);
+        }
+      },
+    );
+
     app.get("/users", verifyFirebaseToken, async (req, res) => {
       try {
         const result = await usersCollection.find().toArray();
@@ -63,6 +109,7 @@ client
         res.status(500).send({ error, message: "can't fetch data" });
       }
     });
+
     // get users by email
     app.get("/users/:email", verifyFirebaseToken, async (req, res) => {
       try {
@@ -79,6 +126,7 @@ client
         res.status(500).send({ error, message: error.message });
       }
     });
+
     app.post("/users", async (req, res) => {
       try {
         const { email, displayName, photoURL } = req.body;
@@ -101,6 +149,7 @@ client
         res.status(500).send({ error, message: "can't fetch data" });
       }
     });
+
     app.patch("/users/:id", verifyFirebaseToken, async (req, res) => {
       try {
         const { status } = req.body;
@@ -156,7 +205,10 @@ client
 
     app.get("/all-lessons", async (req, res) => {
       try {
-        const result = await lessonsCollection.find().toArray();
+        const result = await lessonsCollection
+          .find()
+          .sort({ createdAt: -1 })
+          .toArray();
         res.send(result);
       } catch (error) {
         res.status(500).send({ error, message: "can't fetch data" });
@@ -220,6 +272,33 @@ client
         console.log({ error, message: error.message });
       }
     });
+    // report
+    app.post("/reports/:id", async (req, res) => {
+      const { user } = req.body;
+      const lessonId = req.params.id;
+      try {
+        const result = await reportsCollection.updateOne(
+          { _id: new ObjectId(lessonId) },
+          {
+            $addToSet: { likes: new ObjectId(user) },
+          },
+        );
+        res.send(result);
+      } catch (error) {
+        console.log({ error, message: error.message });
+      }
+    });
+
+    app.get("/reports", async (req, res) => {
+  try {
+    const result = await reportsCollection.find().toArray();
+    res.send(result);
+  } catch (error) {
+    console.error({ error, message: error.message });
+    res.status(500).send({ error: error.message });
+  }
+});
+
 
     // payments
 
