@@ -111,12 +111,12 @@ client
       }
     });
 
-    app.get("/top-contributers", verifyFirebaseToken, async (req, res) => {
+    app.get("/top-contributers", async (req, res) => {
       try {
         const result = await usersCollection
           .find()
           .sort({ contributedLessons: -1 })
-          .limit(5)
+          .limit(3)
           .toArray();
         res.send(result);
       } catch (error) {
