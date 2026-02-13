@@ -66,6 +66,7 @@ client
       next();
     };
 
+    // users
     app.get("/users/:email/roles", verifyFirebaseToken, async (req, res) => {
       try {
         const email = req.decoded_email;
@@ -110,6 +111,19 @@ client
       }
     });
 
+    app.get("/top-contributers", verifyFirebaseToken, async (req, res) => {
+      try {
+        const result = await usersCollection
+          .find()
+          .sort({ contributedLessons: -1 })
+          .limit(5)
+          .toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
     // get users by email
     app.get("/users/:email", verifyFirebaseToken, async (req, res) => {
       try {
@@ -141,6 +155,7 @@ client
             photoURL,
             isPremium: false,
             role: "user",
+            contributedLessons: 0,
             createdAt: new Date(),
           });
         }
@@ -196,7 +211,6 @@ client
           .find({ category })
           .limit(4)
           .toArray();
-        console.log(result);
         res.send(result);
       } catch (error) {
         res.status(500).send({ error, message: "can't fetch data" });
@@ -234,12 +248,12 @@ client
         const lessonsData = req.body;
         const lessons = { ...lessonsData, createdAt: new Date() };
         const result = await lessonsCollection.insertOne(lessons);
-        const userId = lessonsData.creatorId;
-        const updatedDoc = await usersCollection.updateOne(
-          { _id: userId },
+
+        await usersCollection.updateOne(
+          { email: lessonsData.creatorEmail },
           { $inc: { contributedLessons: 1 } },
-          { usert: true },
         );
+
         res.send(result);
       } catch (error) {
         res.status(500).send({ error, message: error.message });
@@ -276,13 +290,27 @@ client
     app.post("/reports/:id", async (req, res) => {
       const { user } = req.body;
       const lessonId = req.params.id;
+      const lesson = await lessonsCollection.findOne({
+        _id: new ObjectId(lessonId),
+      });
       try {
-        const result = await reportsCollection.updateOne(
-          { _id: new ObjectId(lessonId) },
-          {
-            $addToSet: { likes: new ObjectId(user) },
-          },
-        );
+        const existing = await reportsCollection.findOne({
+          lessonId: new ObjectId(lessonId),
+          reportedBy: user.email,
+        });
+
+        if (existing) {
+          return res
+            .status(400)
+            .send({ message: "You have already reported this lesson." });
+        }
+        const result = await reportsCollection.insertOne({
+          lessonId: new ObjectId(lessonId),
+          lessonTitle: lesson?.title,
+          reportedBy: user.email,
+          createdAt: new Date(),
+        });
+
         res.send(result);
       } catch (error) {
         console.log({ error, message: error.message });
@@ -290,15 +318,14 @@ client
     });
 
     app.get("/reports", async (req, res) => {
-  try {
-    const result = await reportsCollection.find().toArray();
-    res.send(result);
-  } catch (error) {
-    console.error({ error, message: error.message });
-    res.status(500).send({ error: error.message });
-  }
-});
-
+      try {
+        const result = await reportsCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error({ error, message: error.message });
+        res.status(500).send({ error: error.message });
+      }
+    });
 
     // payments
 
