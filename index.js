@@ -18,7 +18,10 @@ const client = new MongoClient(uri);
 
 const admin = require("firebase-admin");
 
-const serviceAccount = require("./lifeledger-9e28d-firebase-adminsdk-fbsvc-f9b74ebfb2.json");
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
+  "utf8",
+);
+const serviceAccount = JSON.parse(decoded);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -102,7 +105,7 @@ client
       },
     );
 
-    app.get("/users", verifyFirebaseToken, async (req, res) => {
+    app.get("/users", async (req, res) => {
       try {
         const result = await usersCollection.find().toArray();
         res.send(result);
@@ -262,7 +265,7 @@ client
     // delete
     app.delete("/lessons/:id", async (req, res) => {
       try {
-        const id = req.query.id;
+        const id = req.params.id;
         const query = { _id: new ObjectId(id) };
         const result = await lessonsCollection.deleteOne(query);
         res.send(result);
@@ -381,6 +384,8 @@ client
           },
         );
 
+        console.log(updateResult);
+
         // Check if payment already recorded to avoid duplicates
         const existingPayment = await paymentsCollection.findOne({
           sessionId: sessionID,
@@ -405,10 +410,10 @@ client
     });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!",
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!",
+    // );
     app.listen(port, () => {
       console.log(`LifeLedger server is listening on port ${port}`);
       console.log(`LifeLedger server connected with DB`);

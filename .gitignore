@@ -1,3 +1,4 @@
 node_modules
 .env
 lifeledger-9e28d-firebase-adminsdk-fbsvc-f9b74ebfb2.json
+.vercel
