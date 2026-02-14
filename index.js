@@ -10,11 +10,13 @@ const uri = `mongodb+srv://${process.env.DB_Name}:${process.env.DB_Pass}@cluster
 app.use(express.json());
 app.use(cors());
 
-app.get("/", (req, res) => {
-  res.send({ status: "ok", message: "LifeLedger server is running" });
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
 });
-
-const client = new MongoClient(uri);
 
 const admin = require("firebase-admin");
 
@@ -47,11 +49,11 @@ const verifyFirebaseToken = async (req, res, next) => {
 
   // console.log(authorization);
 };
-
-client
-  .connect()
-  .then(async () => {
-    // db name
+async function run() {
+  try {
+    // Connect the client to the server	(optional starting in v4.7)
+    // await client.connect();
+    // Send a ping to confirm a successful connection
     const LifeLedgerdb = client.db("LifeLedgerdb");
     const usersCollection = LifeLedgerdb.collection("users");
     const lessonsCollection = LifeLedgerdb.collection("lessons");
@@ -147,24 +149,18 @@ client
     app.post("/users", async (req, res) => {
       try {
         const { email, displayName, photoURL } = req.body;
-        if (!email) {
-          res.status(400).send({ message: "Email needed" });
-        }
-        const user = await usersCollection.findOne({ email });
-        if (!user) {
-          user = await usersCollection.insertOne({
-            email,
-            displayName,
-            photoURL,
-            isPremium: false,
-            role: "user",
-            contributedLessons: 0,
-            createdAt: new Date(),
-          });
-        }
-        res.send(user);
+        const result = await usersCollection.insertOne({
+          email,
+          displayName,
+          photoURL,
+          isPremium: false,
+          role: "user",
+          contributedLessons: 0,
+          createdAt: new Date(),
+        });
+        res.send(result);
       } catch (error) {
-        res.status(500).send({ error, message: "can't fetch data" });
+        console.log(error);
       }
     });
 
@@ -414,12 +410,21 @@ client
     // console.log(
     //   "Pinged your deployment. You successfully connected to MongoDB!",
     // );
-    app.listen(port, () => {
-      console.log(`LifeLedger server is listening on port ${port}`);
-      console.log(`LifeLedger server connected with DB`);
-    });
-  })
-  .catch((error) => {
-    console.error("Error connecting to MongoDB:", error);
-    process.exit(1);
-  });
+
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!",
+    // );
+  } finally {
+    // Ensures that the client will close when you finish/error
+    // await client.close();
+  }
+}
+app.get("/", (req, res) => {
+  res.send({ status: "ok", message: "LifeLedger server is running" });
+});
+app.listen(port, () => {
+  console.log(`LifeLedger server is listening on port ${port}`);
+  console.log(`LifeLedger server connected with DB`);
+});
+run().catch(console.dir);
