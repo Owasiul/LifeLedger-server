@@ -149,18 +149,23 @@ async function run() {
     app.post("/users", async (req, res) => {
       try {
         const { email, displayName, photoURL } = req.body;
-        const result = await usersCollection.insertOne({
-          email,
-          displayName,
-          photoURL,
-          isPremium: false,
-          role: "user",
-          contributedLessons: 0,
-          createdAt: new Date(),
-        });
+        const result = await usersCollection.updateOne(
+          { email },
+          {
+            $set: { displayName, photoURL },
+            $setOnInsert: {
+              isPremium: false,
+              role: "user",
+              contributedLessons: 0,
+              createdAt: new Date(),
+            },
+          },
+          { upsert: true },
+        );
         res.send(result);
       } catch (error) {
         console.log(error);
+        res.status(500).send({ message: error.message });
       }
     });
 
