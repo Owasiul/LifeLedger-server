@@ -59,6 +59,8 @@ async function run() {
     const lessonsCollection = LifeLedgerdb.collection("lessons");
     const paymentsCollection = LifeLedgerdb.collection("payments");
     const reportsCollection = LifeLedgerdb.collection("reports");
+    const commentsCollection = LifeLedgerdb.collection("comments");
+    const savedLessonCollection = LifeLedgerdb.collection("savedLesson");
 
     //verify Admin
     const verifyAdmin = async (req, res, next) => {
@@ -150,10 +152,10 @@ async function run() {
       try {
         const { email, displayName, photoURL } = req.body;
         const result = await usersCollection.updateOne(
-          { email },
           {
             $set: { displayName, photoURL },
             $setOnInsert: {
+              email,
               isPremium: false,
               role: "user",
               contributedLessons: 0,
@@ -290,6 +292,51 @@ async function run() {
         console.log({ error, message: error.message });
       }
     });
+    // saved lessons
+    app.post("/lessons/:id/saved-lessons", async (req, res) => {
+      const { user } = req.body;
+      const lessonId = req.params.id;
+      try {
+        const query = { lessonId: new ObjectId(lessonId) };
+        const lesson = await lessonsCollection.findOne(query);
+
+        if (!lesson) {
+          res.send("Can't find the lesson");
+        }
+        const alreadySaved = await savedLessonCollection.findOne({
+          query,
+          savedBy: user?.email,
+        });
+
+        if (alreadySaved) {
+          await savedLessonCollection.deleteOne({ _id: alreadySaved?._id });
+          return res.send({ saved: false });
+        }
+        const result = await savedLessonsCollection.insertOne({
+          lessonId: new ObjectId(lessonId),
+          lessonTitle: lesson.title,
+          savedBy: user.email,
+          createdAt: new Date(),
+        });
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    app.get("/saved-lessons", async (req, res) => {
+      const { email } = req.query;
+      try {
+        const saved = await savedLessonsCollection
+          .find({ savedBy: email })
+          .toArray();
+        res.send(saved);
+      } catch (error) {
+        res.status(500).send({ message: error.message });
+      }
+    });
+
     // report
     app.post("/reports/:id", async (req, res) => {
       const { user } = req.body;
@@ -328,6 +375,49 @@ async function run() {
       } catch (error) {
         console.error({ error, message: error.message });
         res.status(500).send({ error: error.message });
+      }
+    });
+
+    // Comment
+    app.post("/comments/:id", async (req, res) => {
+      const { user, commnet } = req.body;
+      const lessonId = req.params.id;
+      try {
+        const lesson = await lessonsCollection.findOne({
+          _id: new ObjectId(lessonId),
+        });
+        const existing = await commentsCollection.findOne({
+          lessonId: new ObjectId(lessonId),
+          commentedby: user.email,
+        });
+
+        if (existing) {
+          return res
+            .status(400)
+            .send({ message: "You have already commented this lesson." });
+        }
+        const result = await commentsCollection.insertOne({
+          lessonId: new ObjectId(lessonId),
+          lessonTitle: lesson?.title,
+          commnet,
+          commentedby: user.email,
+          createdAt: new Date(),
+        });
+
+        res.send(result);
+      } catch (error) {
+        console.log({ error, message: error.message });
+      }
+    });
+
+    app.get("/comments/:id", async (req, res) => {
+      try {
+        const lessonId = req.params.id;
+        const query = { lessonId: new ObjectId(lessonId) };
+        const result = await commentsCollection.find(query).toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
       }
     });
 
