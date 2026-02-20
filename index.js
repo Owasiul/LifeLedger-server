@@ -380,12 +380,16 @@ async function run() {
 
     // Comment
     app.post("/comments/:id", async (req, res) => {
-      const { user, commnet } = req.body;
+      const { user, comment } = req.body;
       const lessonId = req.params.id;
       try {
         const lesson = await lessonsCollection.findOne({
           _id: new ObjectId(lessonId),
         });
+
+        if (!lesson) {
+          return res.status(404).send({ message: "Lesson not found." });
+        }
         const existing = await commentsCollection.findOne({
           lessonId: new ObjectId(lessonId),
           commentedby: user.email,
@@ -399,7 +403,7 @@ async function run() {
         const result = await commentsCollection.insertOne({
           lessonId: new ObjectId(lessonId),
           lessonTitle: lesson?.title,
-          commnet,
+          comment,
           commentedby: user.email,
           createdAt: new Date(),
         });
