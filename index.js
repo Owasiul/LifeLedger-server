@@ -296,42 +296,47 @@ async function run() {
     app.post("/lessons/:id/saved-lessons", async (req, res) => {
       const { user } = req.body;
       const lessonId = req.params.id;
+
       try {
-        const query = { lessonId: new ObjectId(lessonId) };
-        const lesson = await lessonsCollection.findOne(query);
+        const lesson = await lessonsCollection.findOne({
+          _id: new ObjectId(lessonId),
+        });
 
         if (!lesson) {
-          res.send("Can't find the lesson");
+          return res.status(404).send({ message: "Lesson not found." });
         }
+
         const alreadySaved = await savedLessonCollection.findOne({
-          query,
+          lessonId: new ObjectId(lessonId),
           savedBy: user?.email,
         });
 
         if (alreadySaved) {
-          await savedLessonCollection.deleteOne({ _id: alreadySaved?._id });
+          await savedLessonCollection.deleteOne({ _id: alreadySaved._id });
           return res.send({ saved: false });
         }
-        const result = await savedLessonsCollection.insertOne({
+
+        const result = await savedLessonCollection.insertOne({
           lessonId: new ObjectId(lessonId),
           lessonTitle: lesson.title,
           savedBy: user.email,
           createdAt: new Date(),
         });
 
-        res.send(result);
+        res.send({ saved: true, result });
       } catch (error) {
         console.log(error);
+        res.status(500).send({ message: "Internal server error." });
       }
     });
-
     app.get("/saved-lessons", async (req, res) => {
       const { email } = req.query;
       try {
-        const saved = await savedLessonsCollection
+        const saved = await savedLessonCollection
           .find({ savedBy: email })
           .toArray();
-        res.send(saved);
+
+        return res.send(saved);
       } catch (error) {
         res.status(500).send({ message: error.message });
       }
@@ -390,23 +395,15 @@ async function run() {
         if (!lesson) {
           return res.status(404).send({ message: "Lesson not found." });
         }
-        const existing = await commentsCollection.findOne({
-          lessonId: new ObjectId(lessonId),
-          commentedby: user.email,
-        });
-
-        if (existing) {
-          return res
-            .status(400)
-            .send({ message: "You have already commented this lesson." });
-        }
         const result = await commentsCollection.insertOne({
           lessonId: new ObjectId(lessonId),
           lessonTitle: lesson?.title,
           comment,
-          commentedby: user.email,
+          commentedby: user?.displayName,
+          userPhotoURL: user?.photoURL,
           createdAt: new Date(),
         });
+        console.log("result is", result);
 
         res.send(result);
       } catch (error) {
