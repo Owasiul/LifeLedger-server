@@ -342,6 +342,17 @@ async function run() {
       }
     });
 
+    app.delete("/saved-lessons/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      try {
+        const result = await savedLessonCollection.deleteOne(query);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
     // report
     app.post("/reports/:id", async (req, res) => {
       const { user } = req.body;
