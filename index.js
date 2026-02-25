@@ -224,12 +224,17 @@ async function run() {
     });
 
     app.get("/all-lessons", async (req, res) => {
+      const { limit = 10, skip = 0 } = req.query;
       try {
+        const total = await lessonsCollection.countDocuments();
         const result = await lessonsCollection
           .find()
           .sort({ createdAt: -1 })
+          .skip(Number(skip))
+          .limit(Number(limit))
           .toArray();
-        res.send(result);
+
+        res.send({ all_lessons: result, total }); // ✅ match frontend shape
       } catch (error) {
         res.status(500).send({ error, message: "can't fetch data" });
       }
