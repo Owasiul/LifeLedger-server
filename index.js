@@ -224,17 +224,32 @@ async function run() {
     });
 
     app.get("/all-lessons", async (req, res) => {
-      const { limit = 10, skip = 0 } = req.query;
+      const {
+        limit = 10,
+        skip = 0,
+        sort = "createdAt",
+        order = "desc",
+        search = "",
+      } = req.query;
+      const sortOption = {};
+      sortOption[sort || "createdAt"] = order === "asc" ? 1 : -1;
+
+      const searchQuery = search
+        ? { title: { $regex: search, $options: "i" } }
+        : {};
       try {
         const total = await lessonsCollection.countDocuments();
         const result = await lessonsCollection
-          .find()
-          .sort({ createdAt: -1 })
-          .skip(Number(skip))
-          .limit(Number(limit))
+          .aggregate([
+            { $addFields: { likesCount: { $size: "$likes" } } },
+            { $match: searchQuery },
+            { $sort: sortOption },
+            { $skip: Number(skip) },
+            { $limit: Number(limit) },
+          ])
           .toArray();
 
-        res.send({ all_lessons: result, total }); // ✅ match frontend shape
+        res.send({ all_lessons: result, total });
       } catch (error) {
         res.status(500).send({ error, message: "can't fetch data" });
       }
