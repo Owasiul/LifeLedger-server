@@ -147,11 +147,11 @@ async function run() {
         res.status(500).send({ error, message: error.message });
       }
     });
-
     app.post("/users", async (req, res) => {
       try {
         const { email, displayName, photoURL } = req.body;
         const result = await usersCollection.updateOne(
+          { email },
           {
             $set: { displayName, photoURL },
             $setOnInsert: {
@@ -170,7 +170,6 @@ async function run() {
         res.status(500).send({ message: error.message });
       }
     });
-
     app.patch("/users/:id", verifyFirebaseToken, async (req, res) => {
       try {
         const { status } = req.body;
