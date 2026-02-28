@@ -189,6 +189,14 @@ async function run() {
     });
 
     // lessons
+    app.get("/allLessons", async (req, res) => {
+      try {
+        const result = await lessonsCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error, message: "can't fetch data" });
+      }
+    });
     app.get("/lessons", async (req, res) => {
       try {
         const result = await lessonsCollection.find().limit(6).toArray();
