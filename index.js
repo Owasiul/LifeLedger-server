@@ -191,7 +191,9 @@ async function run() {
     // lessons
     app.get("/allLessons", async (req, res) => {
       try {
-        const result = await lessonsCollection.find().toArray();
+        const result = await lessonsCollection
+          .find({ visibility: { $ne: "private" } })
+          .toArray();
         res.send(result);
       } catch (error) {
         res.status(500).send({ error, message: "can't fetch data" });
@@ -206,10 +208,14 @@ async function run() {
       }
     });
 
-    app.get("/lessons/:name", async (req, res) => {
+    app.get("/lessons/:email", verifyFirebaseToken, async (req, res) => {
       try {
-        const name = req.params.name;
-        const query = { creatorName: name };
+        const decoded_email = req.decoded_email;
+        const paramEmail = req.params.email;
+        if (paramEmail !== decoded_email) {
+          return res.status(403).send({ message: "Forbidden Access" });
+        }
+        const query = { creatorEmail: paramEmail };
         const result = await lessonsCollection.find(query).toArray();
         res.send(result);
       } catch (error) {
@@ -221,7 +227,7 @@ async function run() {
       try {
         const category = req.query.category;
         const result = await lessonsCollection
-          .find({ category })
+          .find({ category, visibility: { $ne: "private" } })
           .limit(4)
           .toArray();
         res.send(result);
@@ -241,11 +247,14 @@ async function run() {
       const sortOption = {};
       sortOption[sort || "createdAt"] = order === "asc" ? 1 : -1;
 
-      const searchQuery = search
-        ? { title: { $regex: search, $options: "i" } }
-        : {};
+      const searchQuery = {
+        visibility: { $ne: "private" },
+        ...(search ? { title: { $regex: search, $options: "i" } } : {}),
+      };
       try {
-        const total = await lessonsCollection.countDocuments();
+        const total = await lessonsCollection.countDocuments({
+          visibility: { $ne: "private" },
+        });
         const result = await lessonsCollection
           .aggregate([
             { $addFields: { likesCount: { $size: "$likes" } } },
@@ -292,6 +301,29 @@ async function run() {
         res.status(500).send({ error, message: error.message });
       }
     });
+
+    // update lessons
+    app.patch("/update-lessons/:id", verifyFirebaseToken, async (req, res) => {
+      try {
+        const lessonData = req.body;
+        const { id } = req.params;
+        const query = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            title: lessonData.title,
+            description: lessonData.description,
+            visibility: lessonData.visibility,
+            accessLevel: lessonData.accessLevel,
+          },
+        };
+        const result = await lessonsCollection.updateOne(query, updatedDoc);
+        console.log(result);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
     // delete
     app.delete("/lessons/:id", async (req, res) => {
       try {
