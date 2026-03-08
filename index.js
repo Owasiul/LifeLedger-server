@@ -188,6 +188,46 @@ async function run() {
       }
     });
 
+    // admin growth
+    app.get("/users-growth", async (req, res) => {
+      try {
+        const type = req.query.type || "monthly";
+
+        let groupFormat;
+
+        if (type === "weekly") {
+          groupFormat = {
+            year: { $year: { $toDate: "$createdAt" } },
+            week: { $week: { $toDate: "$createdAt" } },
+          };
+        } else {
+          groupFormat = {
+            year: { $year: { $toDate: "$createdAt" } },
+            month: { $month: { $toDate: "$createdAt" } },
+          };
+        }
+
+        const result = await usersCollection
+          .aggregate([
+            {
+              $group: {
+                _id: groupFormat,
+                users: { $sum: 1 },
+              },
+            },
+            {
+              $sort: { "_id.year": 1, "_id.week": 1, "_id.month": 1 },
+            },
+          ])
+          .toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to fetch lesson growth" });
+      }
+    });
+
     // lessons
     app.get("/allLessons", async (req, res) => {
       try {
@@ -333,6 +373,46 @@ async function run() {
         res.send(result);
       } catch (error) {
         res.status(500).send({ error, message: error.message });
+      }
+    });
+
+    // admin graph
+    app.get("/lessons-growth", async (req, res) => {
+      try {
+        const type = req.query.type || "monthly";
+
+        let groupFormat;
+
+        if (type === "weekly") {
+          groupFormat = {
+            year: { $year: { $toDate: "$createdAt" } },
+            week: { $week: { $toDate: "$createdAt" } },
+          };
+        } else {
+          groupFormat = {
+            year: { $year: { $toDate: "$createdAt" } },
+            month: { $month: { $toDate: "$createdAt" } },
+          };
+        }
+
+        const result = await lessonsCollection
+          .aggregate([
+            {
+              $group: {
+                _id: groupFormat,
+                lessons: { $sum: 1 },
+              },
+            },
+            {
+              $sort: { "_id.year": 1, "_id.week": 1, "_id.month": 1 },
+            },
+          ])
+          .toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to fetch lesson growth" });
       }
     });
     // likes
