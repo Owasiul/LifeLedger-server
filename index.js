@@ -328,7 +328,11 @@ async function run() {
     app.post("/lessons", async (req, res) => {
       try {
         const lessonsData = req.body;
-        const lessons = { ...lessonsData, createdAt: new Date() };
+        const lessons = {
+          ...lessonsData,
+          createdAt: new Date(),
+          isFeatured: false,
+        };
         const result = await lessonsCollection.insertOne(lessons);
 
         await usersCollection.updateOne(
@@ -342,7 +346,7 @@ async function run() {
       }
     });
 
-    // update lessons
+    // update lessons by user
     app.patch("/update-lessons/:id", verifyFirebaseToken, async (req, res) => {
       try {
         const lessonData = req.body;
@@ -415,6 +419,33 @@ async function run() {
         res.status(500).send({ error: "Failed to fetch lesson growth" });
       }
     });
+
+    // admin make Featured Lesson
+    app.patch("/featured-lesson", async (req, res) => {
+      try {
+        const { lessonId } = req.body;
+        const query = { _id: new ObjectId(lessonId) };
+        // Get current lesson
+        const lesson = await lessonsCollection.findOne(query);
+        // console.log(lesson);
+        
+        if (!lesson.isFeatured) {
+          await lessonsCollection.updateMany(
+            { isFeatured: true },
+            { $set: { isFeatured: false } },
+          );
+        }
+
+        const result = await lessonsCollection.updateOne(query, {
+          $set: { isFeatured: !lesson.isFeatured },
+        });
+        // console.log(result);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
     // likes
     app.post("/lessons/:id/likes", async (req, res) => {
       const { user } = req.body;
