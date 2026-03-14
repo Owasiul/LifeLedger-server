@@ -187,6 +187,24 @@ async function run() {
         res.status(500).send({ error, message: "Failed to update data" });
       }
     });
+    // update profile
+    app.patch("/update-user", async (req, res) => {
+      try {
+        const user = req.body;
+        const updateUser = await usersCollection.updateOne(
+          { email: user.email },
+          {
+            $set: {
+              displayName: user.displayName,
+              photoURL: user.photoURL,
+            },
+          },
+        );
+        res.send(updateUser);
+      } catch (error) {
+        res.status(500).send({ message: error.message });
+      }
+    });
 
     // admin growth
     app.get("/users-growth", async (req, res) => {
@@ -428,7 +446,7 @@ async function run() {
         // Get current lesson
         const lesson = await lessonsCollection.findOne(query);
         // console.log(lesson);
-        
+
         if (!lesson.isFeatured) {
           await lessonsCollection.updateMany(
             { isFeatured: true },
