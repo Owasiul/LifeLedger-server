@@ -20,8 +20,10 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 app.use(
   cors({
-    origin: getEnv().Stripe_Domain,
+    origin: ["http://localhost:5173", "https://life-ledger-client.vercel.app"], 
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
 

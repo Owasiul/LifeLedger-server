@@ -34,8 +34,18 @@ function sanitizeXss(val) {
 
 const xssSanitizerMiddleware = (req, res, next) => {
   if (req.body) req.body = sanitizeXss(req.body);
-  if (req.query) req.query = sanitizeXss(req.query);
-  if (req.params) req.params = sanitizeXss(req.params);
+  if (req.query) {
+    const sanitizedQuery = sanitizeXss(req.query);
+    Object.keys(sanitizedQuery).forEach(key => {
+      req.query[key] = sanitizedQuery[key];
+    });
+  }
+  if (req.params) {
+    const sanitizedParams = sanitizeXss(req.params);
+    Object.keys(sanitizedParams).forEach(key => {
+      req.params[key] = sanitizedParams[key];
+    });
+  }
   next();
 };
 
@@ -61,8 +71,18 @@ function sanitizeNoSQL(val) {
 
 const mongoSanitizeMiddleware = (req, res, next) => {
   if (req.body) req.body = sanitizeNoSQL(req.body);
-  if (req.query) req.query = sanitizeNoSQL(req.query);
-  if (req.params) req.params = sanitizeNoSQL(req.params);
+  if (req.query) {
+    const sanitizedQuery = sanitizeNoSQL(req.query);
+    Object.keys(sanitizedQuery).forEach(key => {
+      req.query[key] = sanitizedQuery[key];
+    });
+  }
+  if (req.params) {
+    const sanitizedParams = sanitizeNoSQL(req.params);
+    Object.keys(sanitizedParams).forEach(key => {
+      req.params[key] = sanitizedParams[key];
+    });
+  }
   next();
 };
 

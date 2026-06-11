@@ -8,10 +8,6 @@ import { NotFoundError, BadRequestError } from "../utils/errors.js";
 
 const router = Router();
 
-// ==========================================
-// LIKES
-// ==========================================
-
 // POST /lessons/:id/likes - Like a lesson
 router.post(
   "/lessons/:id/likes",
