@@ -4,7 +4,11 @@ import { getCollection } from "../config/db.js";
 import { verifyFirebaseToken } from "../middlewares/auth.middleware.js";
 import { asyncHandler } from "../middlewares/error.middleware.js";
 import { responseHandler } from "../utils/response-handler.js";
-import { NotFoundError, AuthorizationError, BadRequestError } from "../utils/errors.js";
+import {
+  NotFoundError,
+  AuthorizationError,
+  BadRequestError,
+} from "../utils/errors.js";
 
 const router = Router();
 
@@ -17,17 +21,20 @@ router.get(
       .find({ visibility: { $ne: "private" } })
       .toArray();
     responseHandler.sendSuccess(res, result);
-  })
+  }),
 );
 
-// GET /lessons - Get first 6 lessons
+// GET /lessons - Get first 4 lessons
 router.get(
-  "/lessons",
+  "/featured-lesson",
   asyncHandler(async (req, res) => {
     const lessonsCollection = getCollection("lessons");
-    const result = await lessonsCollection.find().limit(6).toArray();
+    const result = await lessonsCollection
+      .find({ isFeatured: true })
+      .limit(4)
+      .toArray();
     responseHandler.sendSuccess(res, result);
-  })
+  }),
 );
 
 // GET /lessons/:email - Get lessons created by email (Self only)
@@ -39,14 +46,16 @@ router.get(
     const paramEmail = req.params.email;
 
     if (paramEmail !== decoded_email) {
-      throw new AuthorizationError("Forbidden Access: Cannot view lessons of another user");
+      throw new AuthorizationError(
+        "Forbidden Access: Cannot view lessons of another user",
+      );
     }
 
     const lessonsCollection = getCollection("lessons");
     const query = { creatorEmail: paramEmail };
     const result = await lessonsCollection.find(query).toArray();
     responseHandler.sendSuccess(res, result);
-  })
+  }),
 );
 
 // GET /filtered-lessons - Filter lessons by category (limit 4)
@@ -64,7 +73,7 @@ router.get(
       .limit(4)
       .toArray();
     responseHandler.sendSuccess(res, result);
-  })
+  }),
 );
 
 // GET /all-lessons - Paginated, sortable, searchable lesson retrieval
@@ -118,7 +127,7 @@ router.get(
       .toArray();
 
     responseHandler.sendSuccess(res, { all_lessons: result, total });
-  })
+  }),
 );
 
 // GET /all-lessons/:id - Get single lesson details by ID
@@ -134,7 +143,7 @@ router.get(
     }
 
     responseHandler.sendSuccess(res, result);
-  })
+  }),
 );
 
 // POST /lessons - Create a new lesson
@@ -161,11 +170,16 @@ router.post(
       {
         $inc: { contributedLessons: 1 },
         $set: { lastContributed: new Date() },
-      }
+      },
     );
 
-    responseHandler.sendSuccess(res, result, 201, "Lesson created successfully");
-  })
+    responseHandler.sendSuccess(
+      res,
+      result,
+      201,
+      "Lesson created successfully",
+    );
+  }),
 );
 
 // PATCH /update-lessons/:id - Update user's own lesson details
@@ -184,7 +198,9 @@ router.patch(
     }
 
     if (lesson.creatorEmail !== req.decoded_email) {
-      throw new AuthorizationError("Forbidden Access: Cannot edit other users' lessons");
+      throw new AuthorizationError(
+        "Forbidden Access: Cannot edit other users' lessons",
+      );
     }
 
     const updatedDoc = {
@@ -195,10 +211,18 @@ router.patch(
         accessLevel: lessonData.accessLevel,
       },
     };
-    const result = await lessonsCollection.updateOne({ _id: new ObjectId(id) }, updatedDoc);
+    const result = await lessonsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      updatedDoc,
+    );
 
-    responseHandler.sendSuccess(res, result, 200, "Lesson updated successfully");
-  })
+    responseHandler.sendSuccess(
+      res,
+      result,
+      200,
+      "Lesson updated successfully",
+    );
+  }),
 );
 
 // DELETE /lessons/:id - Delete lesson by ID
@@ -213,8 +237,13 @@ router.delete(
       throw new NotFoundError("Lesson");
     }
 
-    responseHandler.sendSuccess(res, result, 200, "Lesson deleted successfully");
-  })
+    responseHandler.sendSuccess(
+      res,
+      result,
+      200,
+      "Lesson deleted successfully",
+    );
+  }),
 );
 
 // GET /lessons-growth - Fetch lesson creation growth statistics (Admin)
@@ -252,7 +281,7 @@ router.get(
       .toArray();
 
     responseHandler.sendSuccess(res, result);
-  })
+  }),
 );
 
 // PATCH /featured-lesson - Admin featured lesson toggler
@@ -272,20 +301,18 @@ router.patch(
       throw new NotFoundError("Lesson");
     }
 
-    if (!lesson.isFeatured) {
-      // Unfeature any existing featured lessons first
-      await lessonsCollection.updateMany(
-        { isFeatured: true },
-        { $set: { isFeatured: false } }
-      );
-    }
-
+    // Just toggle — no clearing others
     const result = await lessonsCollection.updateOne(query, {
       $set: { isFeatured: !lesson.isFeatured },
     });
 
-    responseHandler.sendSuccess(res, result, 200, "Lesson featured status toggled successfully");
-  })
+    responseHandler.sendSuccess(
+      res,
+      result,
+      200,
+      `Lesson ${lesson.isFeatured ? "unfeatured" : "featured"} successfully`,
+    );
+  }),
 );
 
 export default router;
